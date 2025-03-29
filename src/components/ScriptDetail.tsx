@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { Star, X, ThumbsUp, ThumbsDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Star, X, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
 import { Script } from '../types/script';
+import { ScriptContent, scriptService } from '../services/scriptService';
+import { ScriptViewer } from './ScriptViewer';
 
 interface ScriptDetailProps {
   script: Script;
@@ -10,6 +12,30 @@ interface ScriptDetailProps {
 
 export const ScriptDetail: React.FC<ScriptDetailProps> = ({ script, onClose, onRate }) => {
   const [userRating, setUserRating] = useState<number | null>(null);
+  const [scriptContent, setScriptContent] = useState<ScriptContent | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchScript = async () => {
+      try {
+        setIsLoading(true);
+        const content = await scriptService.fetchScript(script.title);
+        if (content) {
+          setScriptContent(content);
+        } else {
+          setError('Could not fetch script content. Please try again later.');
+        }
+      } catch (err) {
+        setError('An error occurred while fetching the script. Please try again later.');
+        console.error('Error fetching script:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchScript();
+  }, [script.title]);
 
   const handleRate = (rating: number) => {
     setUserRating(rating);
@@ -22,57 +48,22 @@ export const ScriptDetail: React.FC<ScriptDetailProps> = ({ script, onClose, onR
         <div className="relative">
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 text-gray-400 hover:text-white"
+            className="absolute right-4 top-4 text-gray-400 hover:text-white z-10"
           >
             <X className="h-6 w-6" />
           </button>
           
-          <img 
-            src={script.image} 
-            alt={script.title} 
-            className="w-full h-96 object-cover"
-          />
-          
-          <div className="p-6">
-            <h1 className="text-3xl font-bold text-white mb-2">{script.title}</h1>
-            <p className="text-gray-400 mb-4">{script.writer} • {script.year}</p>
-            
-            <div className="flex items-center space-x-4 mb-6">
-              <div className="flex items-center">
-                <Star className="h-5 w-5 text-yellow-400 fill-current" />
-                <span className="text-white ml-1 text-xl">{script.rating.toFixed(1)}</span>
-              </div>
-              <span className="text-gray-400">({script.ratingCount} ratings)</span>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-96">
+              <Loader2 className="h-8 w-8 text-emerald-500 animate-spin" />
             </div>
-
-            <div className="flex flex-wrap gap-2 mb-6">
-              {script.genre.map((g, index) => (
-                <span key={index} className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full">
-                  {g}
-                </span>
-              ))}
+          ) : error ? (
+            <div className="p-6 text-center">
+              <p className="text-red-500">{error}</p>
             </div>
-
-            <p className="text-gray-300 mb-6">{script.description}</p>
-
-            <div className="border-t border-slate-700 pt-6">
-              <h2 className="text-xl font-bold text-white mb-4">Rate this Script</h2>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => handleRate(1)}
-                  className={`p-2 rounded-full ${userRating === 1 ? 'bg-emerald-500' : 'bg-slate-700'}`}
-                >
-                  <ThumbsUp className="h-6 w-6 text-white" />
-                </button>
-                <button
-                  onClick={() => handleRate(0)}
-                  className={`p-2 rounded-full ${userRating === 0 ? 'bg-red-500' : 'bg-slate-700'}`}
-                >
-                  <ThumbsDown className="h-6 w-6 text-white" />
-                </button>
-              </div>
-            </div>
-          </div>
+          ) : scriptContent ? (
+            <ScriptViewer script={scriptContent} />
+          ) : null}
         </div>
       </div>
     </div>
